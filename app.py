@@ -266,22 +266,7 @@ def create_pdf_viewer(link):
     with open(path, 'wb') as file:
         file.write(pdf_bytes.read())
 
-    # Encode the PDF to base64
-    pdf_bytes.seek(0)
-    base64_pdf = base64.b64encode(pdf_bytes.read()).decode('utf-8')
-
-    # Embed the PDF in HTML
-    pdf_display = f"""
-    <embed
-        type="application/pdf"
-        src="data:application/pdf;base64,{base64_pdf}"
-        width="100%"
-        height="600px"
-    />
-    """
-
-    # Display the PDF in Streamlit
-    st.markdown(pdf_display, unsafe_allow_html=True)
+    pdf_viewer(path)
     return path
 
 def get_pdf_doc_as_chunks(path, chunk_size=600, chunk_overlap=40):
