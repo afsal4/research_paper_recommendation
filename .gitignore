@@ -1,0 +1,4 @@
+resources
+.env
+__pycache__
+envir
