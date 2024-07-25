@@ -244,35 +244,44 @@ def get_text_chunks_langchain(text):
     docs = [Document(page_content=x) for x in text_splitter.split_text(text)]
     return docs
 
-def create_pdf_viewer(link):
-    'Download the link in "pdf.pdf" the link and shows it in streamlit'
+def create_pdf_viewer():
+    """Download the PDF from the provided link and show it in Streamlit."""
+    # Define the path for the PDF file
     path = 'static_files/pdf.pdf'
+    link = 'https://arxiv.org/pdf/0710.2925'
     # Download the PDF file
     try:
         response = requests.get(link)
         response.raise_for_status()  # Raise an exception for bad status codes
-    except requests.exceptions.HTTPError:
-        st.write('Http Error')
-        return 
+    except requests.exceptions.HTTPError as e:
+        st.write(f'HTTP Error: {e}')
+        return
+    except requests.exceptions.RequestException as e:
+        st.write(f'Error downloading PDF: {e}')
+        return
 
     # Load the content into a BytesIO object
     pdf_bytes = io.BytesIO(response.content)
-    binary_data = pdf_bytes.read()
 
+    # Write the PDF to a file
     with open(path, 'wb') as file:
-        file.write(binary_data)
-    # Convert to utf-8
-    base64_pdf = base64.b64encode(binary_data).decode('utf-8')
+        file.write(pdf_bytes.read())
 
-    # Embed PDF in HTML
-    pdf_display =  f"""<embed
-    class="pdfobject"
-    type="application/pdf"
-    title="Embedded PDF"
-    src="data:application/pdf;base64,{base64_pdf}"
-    style="width: 100%; height: 600px;">"""
+    # Encode the PDF to base64
+    pdf_bytes.seek(0)
+    base64_pdf = base64.b64encode(pdf_bytes.read()).decode('utf-8')
 
-    # Display file
+    # Embed the PDF in HTML
+    pdf_display = f"""
+    <embed
+        type="application/pdf"
+        src="data:application/pdf;base64,{base64_pdf}"
+        width="100%"
+        height="600px"
+    />
+    """
+
+    # Display the PDF in Streamlit
     st.markdown(pdf_display, unsafe_allow_html=True)
     return path
 
