@@ -244,11 +244,10 @@ def get_text_chunks_langchain(text):
     docs = [Document(page_content=x) for x in text_splitter.split_text(text)]
     return docs
 
-def create_pdf_viewer():
+def create_pdf_viewer(link):
     """Download the PDF from the provided link and show it in Streamlit."""
     # Define the path for the PDF file
     path = 'static_files/pdf.pdf'
-    link = 'https://arxiv.org/pdf/0710.2925'
     # Download the PDF file
     try:
         response = requests.get(link)
