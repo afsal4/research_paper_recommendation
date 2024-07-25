@@ -33,8 +33,6 @@ LINK = 'https://arxiv.org/pdf/'
 if 'GOOGLE_API_KEY' not in os.environ:
     os.environ['GOOGLE_API_KEY'] = os.getenv('GOOGLE_API_KEY')
 
-if 'GROQ_API_KEY' not in os.environ:
-    os.environ['GROQ_API_KEY'] = os.getenv('GROQ_API_KEY')
 if 'PINECONE_API_KEY' not in os.environ:
     os.environ['PINECONE_API_KEY'] = os.getenv('PINECONE_API_KEY')
 
@@ -61,47 +59,32 @@ def query_page():
 
     if 'message_history' not in st.session_state:
         st.session_state.message_history = []
-    model = ChatGoogleGenerativeAI(model='gemini-pro', convert_system_message_to_human=True, model_kwargs={'stop': 'A:'})
+    model = ChatGoogleGenerativeAI(model='gemini-pro', convert_system_message_to_human=True, stop=['A:'])
 
     # few shot prompting + chain of thought 
-    template = ChatPromptTemplate.from_messages([
-        ('system',
-            '''You are a detailed query bot used for creating the best queries for recommendations of research papers.
-            Only ask three one question at a time.
-            After asking three questions (only one at a time), create a query.
+    template = ChatPromptTemplate.from_messages([('system',
+        '''
+        You are a chat assitant for helping the user to find the reaserch paper 
 
-            Steps to follow: 
-            * help the user as much as possible to find the content that he is looking for 
-            * Create a sentence which can be used for comparing with research papers in the database to get the result based on context.
-            * the query should be really detailed it should explain about the field of study
-            * Query should only be in the format:
-            Query: <query_sentence>
-            
-            Examples of Chat with history: (only  ask one at a time)
-            I need a research paper on machine learning 
-            A: is there any specific paper that you are looking in machine learning 
-            Yes i want paper on classification task 
-            A: Do you want to look for classification paper related to Rnn, CNN, etc?? or classification task in general
-            i want a paper that helps me get the accuracy high for image data 
-            Query: The CNN-powered classification task in computer vision achieved high levels of accuracy.
+        Only ask three one question at a time.
+        
+        After asking three questions (only one at a time), create a query to search in database
 
-            Sentiment analysis usig transformers network
-            A: Is there any unique network you are interested in?
-            no i dont care about the transformer architecture as long as it is good for getting accurate res 
-            A: Is there anything else you want to add which help me find the best paper for you
-            No, I dont have any other points
-            (transformer should be related to deeplearning, he doesnt care about the architecture so anyarchitecture with high acc)
-            Query: The transformer network in sentiment analysis tasks which comes with good performance
-            
-            I need moon evolution papers
-            A: what kind of evolution papers are you looking for are you look for historical or based on science
-            Im looking for any paper based on galaxy orbits and all
-            A: are you looking for scientific paper how galaxies came by and all
-            yes
-            (the moon refering must be the earths moon and he care about evolution of planets and galaxies like bigbang theory)
-            Query: Theories explore the evolution of the moon and propose explanations for the creation of galaxies, moons, and celestial bodies throughout the universe'''),
-        MessagesPlaceholder(variable_name="messages"),
-    ])
+        
+        Example:
+        `````
+        Input: Sentiment analysis usig transformers network
+        Answer: Is there any unique network you are interested in?
+        Input: no i dont care about the transformer architecture as long as it is good for getting accurate res 
+        Answer: Is there anything else you want to hadd wich help me find the best paper for you
+        Input: No, I dont have any other points
+        (transformer should be related to deeplearning, he doesnt care about the architecture so any architecture with high acc for predicting the sentiment of the task)
+        Answer: Query: The transformer network in sentiment analysis tasks which comes with good performance
+        `````
+        Begin! 
+        '''), 
+        MessagesPlaceholder('messages')
+        ])
 
     parser = StrOutputParser()
     chain = template | model | parser
@@ -113,17 +96,20 @@ def query_page():
 
         config = {'configurable': {'session_id': 'sgd'}}
 
+        # can add some part for cleaning text 
+
         st.session_state.message_history.append(HumanMessage(human_message))
         ai_message = with_message_history.invoke(st.session_state.message_history, config=config)
-        st.session_state.message_history.append(ai_message)
+        st.session_state.message_history.append(AIMessage(ai_message))
 
         for message in st.session_state['message_history']:
 
             if type(message) == HumanMessage:
                 role = 'user'
-                message = message.content
             elif 'Query' not in message:
                 role = 'ai'
+
+            message = message.content
             with st.chat_message(role):
                 st.write(message)
 
