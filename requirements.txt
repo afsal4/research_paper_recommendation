@@ -96,6 +96,7 @@ six==1.16.0
 smmap==5.0.1
 SQLAlchemy==2.0.31
 streamlit==1.36.0
+streamlit-pdf-viewer==0.0.14
 sympy==1.13.1
 tenacity==8.5.0
 threadpoolctl==3.5.0
