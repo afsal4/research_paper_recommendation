@@ -14,10 +14,13 @@ from pinecone import Pinecone
 from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
 from langchain_community.document_loaders import PyPDFLoader
-import base64
+from langchain_community.retrievers import PineconeHybridSearchRetriever
+from pinecone_text.sparse import BM25Encoder
 from streamlit import session_state as ss
+from sklearn.feature_extraction.text import TfidfVectorizer
 import requests
 import io
+import torch
 from langchain_community.vectorstores import FAISS 
 from readme_page import create
 from prompts import *
@@ -28,13 +31,15 @@ SIMILARITY_THRESHOLD = 0.68
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 40
 INDEX_NAME = 'recomentation'
+pinecone_api_key = os.getenv('PINECONE_API_KEY')
+
 LINK = 'https://arxiv.org/pdf/'
 
 if 'GOOGLE_API_KEY' not in os.environ:
     os.environ['GOOGLE_API_KEY'] = os.getenv('GOOGLE_API_KEY')
 
 if 'PINECONE_API_KEY' not in os.environ:
-    os.environ['PINECONE_API_KEY'] = os.getenv('PINECONE_API_KEY')
+    os.environ['PINECONE_API_KEY'] = pinecone_api_key
 
 
 def navigator(page_name):
@@ -60,6 +65,7 @@ def query_page():
     if 'message_history' not in st.session_state:
         st.session_state.message_history = []
     model = ChatGoogleGenerativeAI(model='gemini-pro', convert_system_message_to_human=True, stop=['A:'])
+    search_method = st.radio('##### Search methods', ['Context Search', 'Hybrid Search', 'Tf-Idf Search'], index=0)
 
     # few shot prompting + chain of thought 
     template = ChatPromptTemplate.from_messages([('system',
@@ -116,7 +122,7 @@ def query_page():
         if 'Query:' in ai_message:
             result_query = ai_message.replace('Query:', '').strip()
             reset_session()
-            recommended_links, recommended_titles = get_links(result_query)
+            recommended_links, recommended_titles = get_links(result_query, search_method)
             if not recommended_links:
                 st.write('There are no similar files that you are looking for')
                 return 
@@ -153,7 +159,6 @@ def main():
         create('eval')
     elif res_button:
         create('res')
-
 
 
 def reset_links():
@@ -216,13 +221,67 @@ def create_link(ids, min_thresh):
             titles.append(title)
     return pdf_links, titles
     
-def get_links(query): 
+def get_links(query, method='Context Search'): 
     'Given a query sentence, search for similar docs and returns the download links of paper'
-    similar_docs = load_and_get_file(query)
-    corrected_ids = get_correct_ids(similar_docs)
-    pdf_ordered_links, ordered_titles = create_link(corrected_ids, SIMILARITY_THRESHOLD)
+    match method:
+        case 'Context Search':
+            similar_docs = load_and_get_file(query)
+            corrected_ids = get_correct_ids(similar_docs)
+            pdf_ordered_links, ordered_titles = create_link(corrected_ids, SIMILARITY_THRESHOLD)
+        case 'Hybrid Search':
+            pdf_ordered_links, ordered_titles = get_hybrid_res(query)
+        case 'Tf-Idf Search':
+            pdf_ordered_links, ordered_titles = get_tf_idf_res(query)
+
     return pdf_ordered_links, ordered_titles
 
+def get_hybrid_res(query):
+    print('hybrid, \n\n\n\n\n')
+    index_name = 'recommendation-hybrid-test'
+    pc = Pinecone(api_key=pinecone_api_key)
+    index = pc.Index(index_name)
+
+    bm25_path = 'data/bm25_data.json'
+
+    bm25encoder = BM25Encoder().load(bm25_path)
+    embeddings = GoogleGenerativeAIEmbeddings(model='models/embedding-001')
+    pc_t = PineconeHybridSearchRetriever(index=index, embeddings=embeddings, sparse_encoder=bm25encoder, top_k=4)
+    recommendations = pc_t.invoke(query)
+    pdf_links = []
+    titles = []
+    for results in recommendations:
+        id = results.metadata['id']
+        title = results.metadata['title']
+        pdf_links.append(LINK+str(id))
+        titles.append(title)
+    return pdf_links, titles
+
+
+def get_tf_idf_res(query):
+    print('tfidf, \n\n\n\n\n')
+
+    index_name = 'recommendation-tfidf-bigram'
+    pc = Pinecone(api_key=pinecone_api_key)
+    index = pc.Index(index_name)
+
+    corpus = torch.load('data/preprocessed_documents.pt')
+    vectorize = TfidfVectorizer(max_df=0.97, min_df=0.005, ngram_range = (1, 2))
+    vectorize.fit(corpus)
+
+    query_vec = vectorize.transform([query]).toarray()
+    query_vec = query_vec.squeeze()
+    val = [float(i) for i in query_vec]
+
+    recommendations = index.query(vector=val, top_k=4, include_metadata=True)
+
+    pdf_links = []
+    titles = []
+    for results in recommendations['matches']:
+        id = results['metadata']['id']
+        title = results['metadata']['title']
+        pdf_links.append(LINK+str(id))
+        titles.append(title)
+    return pdf_links, titles
 
 
 def get_text_chunks_langchain(text):
