@@ -1,4 +1,5 @@
-# imports 
+# imports
+from streamlit_pdf_viewer import pdf_viewer
 import streamlit as st
 import os
 import dotenv
