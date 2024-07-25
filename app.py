@@ -265,7 +265,8 @@ def create_pdf_viewer(link):
     base64_pdf = base64.b64encode(binary_data).decode('utf-8')
 
     # Embed PDF in HTML
-    pdf_display = F'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="500" type="application/pdf"></iframe>'
+    view_meta_code = '''<meta http-equiv="Content-Security-Policy" content="default-src 'self'; frame-src 'self' data:;">'''
+    pdf_display = view_meta_code + F'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="500" type="application/pdf"></iframe>'
 
     # Display file
     st.markdown(pdf_display, unsafe_allow_html=True)
