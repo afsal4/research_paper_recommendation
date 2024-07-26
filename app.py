@@ -27,7 +27,7 @@ from prompts import *
 
 dotenv.load_dotenv()
 
-SIMILARITY_THRESHOLD = 0.68
+SIMILARITY_THRESHOLD = 0.65
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 40
 INDEX_NAME = 'recomentation'
