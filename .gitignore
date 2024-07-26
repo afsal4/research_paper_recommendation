@@ -2,3 +2,5 @@ resources
 .env
 __pycache__
 envir
+c.ipynb
+c.py 

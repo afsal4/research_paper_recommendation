@@ -65,7 +65,6 @@ def query_page():
     if 'message_history' not in st.session_state:
         st.session_state.message_history = []
     model = ChatGoogleGenerativeAI(model='gemini-pro', convert_system_message_to_human=True, stop=['A:'])
-    search_method = st.radio('##### Search methods', ['Context Search', 'Hybrid Search', 'Tf-Idf Search'], index=0)
 
     # few shot prompting + chain of thought 
     template = ChatPromptTemplate.from_messages([('system',
@@ -97,6 +96,8 @@ def query_page():
     with_message_history = RunnableWithMessageHistory(chain, get_session)
 
     st.title('Research Paper Recommender')
+    search_method = st.radio('##### Search methods', ['Context Search', 'Hybrid Search', 'Tf-Idf Search'], index=0)
+
     human_message = st.chat_input('Enter here:')
     if human_message:
 
