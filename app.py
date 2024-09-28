@@ -95,7 +95,7 @@ def query_page():
     chain = template | model | parser
     with_message_history = RunnableWithMessageHistory(chain, get_session)
 
-    st.title('Research Paper Recommender')
+    st.title('Scholar Compass')
     search_method = st.radio('##### Search methods', ['Context Search', 'Hybrid Search', 'Tf-Idf Search'], index=0)
 
     human_message = st.chat_input('Enter here:')
